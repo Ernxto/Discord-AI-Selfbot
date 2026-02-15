@@ -1,0 +1,5 @@
+[run]
+command = "python3 final_smart.py"
+
+[packager]
+language = "python3.9"
