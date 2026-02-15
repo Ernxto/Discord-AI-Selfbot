@@ -1,0 +1,15 @@
+app = "discord-ai-selfbot"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DISCORD_TOKEN = ""
+  OPENROUTER_API_KEY = ""
+
+[deploy]
+  release_command = "python3 final_smart.py"
+
+[processes]
+  app = "python3 final_smart.py"
