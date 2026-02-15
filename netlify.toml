@@ -1,0 +1,18 @@
+[build]
+  functions = "api/"
+  publish = ""
+
+[build.environment]
+  PYTHON_VERSION = "3.9"
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/poll.py"
+  status = 200
+
+[context.production.environment]
+  DISCORD_TOKEN = "@discord-token"
+  OPENROUTER_API_KEY = "@openrouter-key"
+
+[functions]
+  directory = "api"

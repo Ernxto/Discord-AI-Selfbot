@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/poll.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/poll",
+      "dest": "api/poll.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/poll.py"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/poll",
+      "schedule": "*/30 * * * *"
+    }
+  ],
+  "env": {
+    "DISCORD_TOKEN": "@discord-token",
+    "OPENROUTER_API_KEY": "@openrouter-key"
+  }
+}
