@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: discord-ai-selfbot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 final_smart.py
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+    healthCheckPath: /  # Not used for worker, but required

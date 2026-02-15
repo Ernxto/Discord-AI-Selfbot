@@ -6,5 +6,7 @@ asyncio
 python-dotenv
 pyYAML
 requests
-groq
 openai
+fastapi
+uvicorn
+jinja2
