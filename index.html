@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Bot - Active</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            max-width: 500px;
+        }
+        .status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #00ff88;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        h1 {
+            margin: 0 0 20px;
+        }
+        .info {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .btn {
+            background: #0f3460;
+            color: #eee;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .btn:hover {
+            background: #1a4a8a;
+        }
+        .response {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: left;
+            display: none;
+        }
+        .response.success {
+            border-left: 4px solid #00ff88;
+        }
+        .response.error {
+            border-left: 4px solid #ff4757;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><span class="status"></span>Discord Bot</h1>
+
+        <div class="info">
+            <p><strong>Target Channel:</strong> #general</p>
+            <p><strong>Method:</strong> Polling every minute</p>
+            <p><strong>Response Delay:</strong> ~60 seconds</p>
+        </div>
+
+        <button class="btn" onclick="triggerBot()">Trigger Now</button>
+        <button class="btn" onclick="window.open('https://app.netlify.com/sites/discord-bot-ernxto/logs', '_blank')">View Logs</button>
+
+        <div id="response" class="response"></div>
+    </div>
+
+    <script>
+        async function triggerBot() {
+            const btn = document.querySelector('.btn');
+            const response = document.getElementById('response');
+
+            btn.disabled = true;
+            btn.textContent = 'Triggering...';
+            response.style.display = 'none';
+
+            try {
+                const res = await fetch('/.netlify/functions/poll');
+                const data = await res.json();
+
+                response.style.display = 'block';
+                if (res.ok) {
+                    response.className = 'response success';
+                    response.innerHTML = `<strong>✓ Success</strong><br>${JSON.stringify(data, null, 2)}`;
+                } else {
+                    response.className = 'response error';
+                    response.innerHTML = `<strong>✗ Error (${res.status})</strong><br>${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (err) {
+                response.style.display = 'block';
+                response.className = 'response error';
+                response.innerHTML = `<strong>✗ Failed</strong><br>${err.message}`;
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Trigger Now';
+        }
+    </script>
+</body>
+</html>
