@@ -7,7 +7,7 @@
 
 [[redirects]]
   from = "/*"
-  to = "/.netlify/functions/poll.py"
+  to = "/.netlify/functions/poll"
   status = 200
 
 [context.production.environment]
