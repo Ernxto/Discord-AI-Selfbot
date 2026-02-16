@@ -1,1 +1,1 @@
-[{"path": "poll", "schedule": "*/30 * * * *"}]
+[{"path": "poll", "schedule": "* * * * *"}]
