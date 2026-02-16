@@ -10,6 +10,7 @@ Not recommended for production use.
 import os
 import json
 import time
+import sqlite3
 from datetime import datetime
 import requests
 from openai import AsyncOpenAI as OpenAI
@@ -42,6 +43,80 @@ ai_client = OpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1"
 )
+
+# Memory database (SQLite for simplicity - in production use external DB)
+DB_PATH = "/tmp/discord_memory.db"
+
+def init_db():
+    """Initialize SQLite database for message memory"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER,
+            user_id INTEGER,
+            username TEXT,
+            content TEXT,
+            timestamp REAL,
+            is_bot INTEGER
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_channel ON messages(channel_id, timestamp)")
+    conn.commit()
+    conn.close()
+
+def store_message(channel_id, user_id, username, content, is_bot=False):
+    """Store a message in memory"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO messages (channel_id, user_id, username, content, timestamp, is_bot)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (channel_id, user_id, username, content, time.time(), is_bot))
+
+        # Keep only last 100 messages
+        c.execute("DELETE FROM messages WHERE id IN (SELECT id FROM messages ORDER BY timestamp DESC LIMIT -1 OFFSET 100)")
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[ERROR] Failed to store message: {e}")
+
+def get_recent_messages(channel_id, limit=15):
+    """Get recent messages for context"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+            SELECT user_id, username, content, is_bot
+            FROM messages
+            WHERE channel_id = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """, (channel_id, limit))
+        messages = c.fetchall()
+        conn.close()
+        messages.reverse()
+        return messages
+    except Exception as e:
+        print(f"[ERROR] Failed to get messages: {e}")
+        return []
+
+def build_context(channel_id, current_content, user_id):
+    """Build conversation context for the AI"""
+    recent = get_recent_messages(channel_id, 15)
+
+    if not recent:
+        return ""
+
+    context_lines = ["Recent conversation:"]
+    for msg in recent:
+        prefix = "Bot" if msg[3] else msg[1]
+        context_lines.append(f"[{prefix}]: {msg[2]}")
+
+    return "\n".join(context_lines)
 
 
 def load_instructions() -> str:
@@ -172,6 +247,9 @@ def handler(event, context):
     """
     global LAST_SEEN_MESSAGE, LAST_REPLY_TIME
 
+    # Initialize database
+    init_db()
+
     print(f"[{datetime.now().isoformat()}] Bot triggered")
 
     try:
@@ -213,12 +291,31 @@ def handler(event, context):
             if should_process_message(msg, user_id):
                 content = msg.get("content", "")
                 author = msg.get("author", {}).get("username", "Unknown")
+                msg_author_id = msg.get("author", {}).get("id")
 
                 print(f"[MSG] {author}: {content[:50]}")
 
-                # Generate response
+                # Store message in memory
+                store_message(TARGET_CHANNEL, msg_author_id, author, content, is_bot=False)
+
+                # Build context from conversation history
+                context = build_context(TARGET_CHANNEL, content, msg_author_id)
+
+                # Generate response with context
                 import asyncio
-                response = asyncio.run(generate_response(content, instructions))
+
+                if context:
+                    prompt_with_context = f"""You are a helpful, friendly Discord bot.
+
+CONVERSATION CONTEXT:
+{context}
+
+CURRENT MESSAGE: {content}
+
+Respond naturally. Keep it short (1-2 sentences, under 30 words)."""
+                    response = asyncio.run(generate_response(prompt_with_context, instructions))
+                else:
+                    response = asyncio.run(generate_response(content, instructions))
 
                 if not response or len(response.strip()) < 2:
                     print(f"[SKIP] No valid response")
@@ -229,6 +326,10 @@ def handler(event, context):
 
                 # Send reply
                 send_message(TARGET_CHANNEL, response, reply_to=msg.get("id"))
+
+                # Store bot's response in memory
+                store_message(TARGET_CHANNEL, user_id, user.get("username"), response, is_bot=True)
+
                 LAST_REPLY_TIME = time.time()
                 responded += 1
 
