@@ -1,18 +1,22 @@
 [build]
-  functions = "api/"
-  publish = ""
+  publish = "public"
+  functions = "netlify/functions"
 
 [build.environment]
   PYTHON_VERSION = "3.9"
 
+# Redirect root URL to function
 [[redirects]]
-  from = "/*"
+  from = "/"
+  to = "/.netlify/functions/poll"
+  status = 200
+
+# Redirect any cron-triggered paths
+[[redirects]]
+  from = "/cron/*"
   to = "/.netlify/functions/poll"
   status = 200
 
 [context.production.environment]
   DISCORD_TOKEN = "@discord-token"
   OPENROUTER_API_KEY = "@openrouter-key"
-
-[functions]
-  directory = "api"
