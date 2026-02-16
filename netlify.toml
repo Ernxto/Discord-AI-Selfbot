@@ -11,6 +11,12 @@
   to = "/.netlify/functions/poll"
   status = 200
 
+# Redirect cron path
+[[redirects]]
+  from = "/poll"
+  to = "/.netlify/functions/poll"
+  status = 200
+
 # Redirect any cron-triggered paths
 [[redirects]]
   from = "/cron/*"
