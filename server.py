@@ -220,6 +220,16 @@ class HealthHandler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
+    
+    def do_HEAD(self):
+        # Handle HEAD requests from Render health checks
+        if self.path == "/health" or self.path == "/":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
 
 def run_http_server():
     """Run HTTP server for health checks"""
