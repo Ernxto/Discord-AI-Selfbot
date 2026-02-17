@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
 """
 Discord Bot - Long-running Server for Render Web Service
 """
 import os
+import sys
 import json
 import time
 import sqlite3
@@ -12,6 +14,15 @@ import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 
+# Setup file logging immediately
+log_file = open("/tmp/bot.log", "a")
+sys.stdout = log_file
+
+def log(msg):
+    """Write to both stdout and file"""
+    print(msg)
+    log_file.flush()  # Force write to disk immediately
+
 # Load environment variables
 load_dotenv()
 
@@ -19,7 +30,8 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 if not DISCORD_TOKEN or not OPENROUTER_API_KEY:
-    raise ValueError("Missing environment variables")
+    log("[ERROR] Missing environment variables")
+    sys.exit(1)
 
 # Discord API configuration
 DISCORD_API = "https://discord.com/api/v10"
@@ -55,7 +67,7 @@ def init_db():
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"[ERROR] DB init failed: {e}")
+        log(f"[ERROR] DB init failed: {e}")
 
 def store_message(channel_id, user_id, username, content, is_bot=False):
     """Store a message"""
@@ -70,7 +82,7 @@ def store_message(channel_id, user_id, username, content, is_bot=False):
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"[ERROR] Store failed: {e}")
+        log(f"[ERROR] Store failed: {e}")
 
 def get_recent_messages(channel_id, limit=10):
     """Get recent messages"""
@@ -89,7 +101,7 @@ def get_recent_messages(channel_id, limit=10):
         messages.reverse()
         return messages
     except Exception as e:
-        print(f"[ERROR] Get messages failed: {e}")
+        log(f"[ERROR] Get messages failed: {e}")
         return []
 
 def discord_get(url):
@@ -128,7 +140,7 @@ Respond naturally. Keep it short (1-2 sentences, under 30 words)."""
         )
         return response.choices[0].message.content
     except Exception as e:
-        print(f"[ERROR] AI failed: {e}")
+        log(f"[ERROR] AI failed: {e}")
         return None
 
 def process_messages():
@@ -137,19 +149,19 @@ def process_messages():
         # Get bot user info
         user = discord_get("/users/@me")
         if not user:
-            print("[ERROR] Failed to authenticate")
+            log("[ERROR] Failed to authenticate")
             return
 
         user_id = user.get("id")
-        print(f"[INFO] Bot: {user.get('username')} ({user_id})")
+        log(f"[INFO] Bot: {user.get('username')} ({user_id})")
 
         # Fetch messages
         messages = discord_get(f"/channels/{TARGET_CHANNEL}/messages?limit=20")
         if not messages:
-            print("[INFO] No messages")
+            log("[INFO] No messages")
             return
 
-        print(f"[INFO] Fetched {len(messages)} messages")
+        log(f"[INFO] Fetched {len(messages)} messages")
 
         # Get recent context
         recent = get_recent_messages(TARGET_CHANNEL, 10)
@@ -168,7 +180,7 @@ def process_messages():
             if len(content) < 3:
                 continue
 
-            print(f"[MSG] {msg.get('author', {}).get('username')}: {content[:50]}")
+            log(f"[MSG] {msg.get('author', {}).get('username')}: {content[:50]}")
 
             # Store message
             msg_author_id = msg.get("author", {}).get("id")
@@ -177,7 +189,7 @@ def process_messages():
             # Generate response
             response = generate_response(content, context)
             if not response or len(response.strip()) < 2:
-                print("[SKIP] No valid response")
+                log("[SKIP] No valid response")
                 return
 
             # Limit response
@@ -188,7 +200,7 @@ def process_messages():
             if len(words) > 30:
                 response = ' '.join(words[:30])
 
-            print(f"[REPLY] {response[:50]}")
+            log(f"[REPLY] {response[:50]}")
 
             # Send reply
             discord_post(f"/channels/{TARGET_CHANNEL}/messages", {
@@ -199,13 +211,13 @@ def process_messages():
             # Store bot response
             store_message(TARGET_CHANNEL, user_id, user.get("username"), response, is_bot=True)
 
-            print("[DONE] Response sent")
+            log("[DONE] Response sent")
             return
 
-        print("[INFO] No new messages to respond to")
+        log("[INFO] No new messages to respond to")
 
     except Exception as e:
-        print(f"[ERROR] {e}")
+        log(f"[ERROR] {e}")
         import traceback
         traceback.print_exc()
 
@@ -235,52 +247,54 @@ def run_http_server():
     """Run HTTP server for health checks"""
     port = int(os.getenv("PORT", "8080"))
     server = HTTPServer(("0.0.0.0", port), HealthHandler)
-    print(f"[INFO] Health server running on port {port}")
+    log(f"[INFO] Health server running on port {port}")
     return server
 
 def main():
     """Main loop"""
-    print("[DEBUG] main() called")
+    log("[STARTUP] Bot starting, PID: " + str(os.getpid()))
+    log("[STARTUP] TARGET_CHANNEL: " + str(TARGET_CHANNEL))
+    log("[STARTUP] CHECK_INTERVAL: " + str(CHECK_INTERVAL))
     
     try:
-        print("[DEBUG] Initializing database...")
+        log("[DEBUG] Initializing database...")
         init_db()
-        print("[DEBUG] Database initialized")
+        log("[DEBUG] Database initialized")
     except Exception as e:
-        print(f"[ERROR] DB init failed: {e}")
+        log(f"[ERROR] DB init failed: {e}")
         return
 
-    print(f"[{datetime.now().isoformat()}] Bot starting")
+    log(f"[{datetime.now().isoformat()}] Bot starting")
 
     # Check env vars
-    print(f"[DEBUG] DISCORD_TOKEN set: {bool(os.getenv('DISCORD_TOKEN'))}")
-    print(f"[DEBUG] OPENROUTER_API_KEY set: {bool(os.getenv('OPENROUTER_API_KEY'))}")
-    print(f"[DEBUG] TARGET_CHANNEL: {os.getenv('TARGET_CHANNEL')}")
-    print(f"[DEBUG] CHECK_INTERVAL: {os.getenv('CHECK_INTERVAL')}")
+    log(f"[DEBUG] DISCORD_TOKEN set: {bool(os.getenv('DISCORD_TOKEN'))}")
+    log(f"[DEBUG] OPENROUTER_API_KEY set: {bool(os.getenv('OPENROUTER_API_KEY'))}")
+    log(f"[DEBUG] TARGET_CHANNEL: {os.getenv('TARGET_CHANNEL')}")
+    log(f"[DEBUG] CHECK_INTERVAL: {os.getenv('CHECK_INTERVAL')}")
 
     # Start HTTP server in background thread
     import threading
-    print("[DEBUG] Starting HTTP server...")
+    log("[DEBUG] Starting HTTP server...")
     http_server = run_http_server()
     http_thread = threading.Thread(target=http_server.serve_forever, daemon=True)
     http_thread.start()
-    print("[DEBUG] HTTP server thread started")
+    log("[DEBUG] HTTP server thread started")
 
     # Main bot loop
-    print("[DEBUG] Starting main loop...")
+    log("[DEBUG] Starting main loop...")
     loop_count = 0
     while True:
         try:
             loop_count += 1
-            print(f"[DEBUG] Loop iteration {loop_count}")
+            log(f"[DEBUG] Loop iteration {loop_count}")
             process_messages()
-            print(f"[DEBUG] Sleeping for {CHECK_INTERVAL} seconds...")
+            log(f"[DEBUG] Sleeping for {CHECK_INTERVAL} seconds...")
             time.sleep(CHECK_INTERVAL)
         except KeyboardInterrupt:
-            print("[INFO] Shutting down...")
+            log("[INFO] Shutting down...")
             break
         except Exception as e:
-            print(f"[ERROR] Loop error: {e}")
+            log(f"[ERROR] Loop error: {e}")
             import traceback
             traceback.print_exc()
             time.sleep(5)
