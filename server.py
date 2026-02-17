@@ -66,6 +66,7 @@ def init_db():
         c.execute("CREATE INDEX IF NOT EXISTS idx_channel ON messages(channel_id, timestamp)")
         conn.commit()
         conn.close()
+        log("[DEBUG] Database initialized successfully")
     except Exception as e:
         log(f"[ERROR] DB init failed: {e}")
 
@@ -276,7 +277,7 @@ def main():
     import threading
     log("[DEBUG] Starting HTTP server...")
     http_server = run_http_server()
-    http_thread = threading.Thread(target=http_server.serve_forever, daemon=True)
+    http_thread = threading.Thread(target=http_server.serve_forever, daemon=False)  # Changed from daemon=True to daemon=False
     http_thread.start()
     log("[DEBUG] HTTP server thread started")
 
