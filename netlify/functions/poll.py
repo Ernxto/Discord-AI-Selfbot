@@ -131,6 +131,20 @@ Respond naturally. Keep it short (1-2 sentences, under 30 words)."""
 
 def handler(event, context):
     """Netlify function handler"""
+
+    # Health check for cron - simple 200 response
+    http_method = event.get('httpMethod', 'GET')
+    path = event.get('path', '')
+    query_params = event.get('queryStringParameters', {})
+
+    # If it's a cron/health check, return 200 immediately
+    if http_method == 'GET' and (path == '/' or path == '/health' or 'health' in query_params):
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"status": "ok", "bot": "alive"})
+        }
+
     init_db()
 
     print(f"[{datetime.now().isoformat()}] Bot triggered")
