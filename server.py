@@ -240,25 +240,49 @@ def run_http_server():
 
 def main():
     """Main loop"""
-    init_db()
+    print("[DEBUG] main() called")
+    
+    try:
+        print("[DEBUG] Initializing database...")
+        init_db()
+        print("[DEBUG] Database initialized")
+    except Exception as e:
+        print(f"[ERROR] DB init failed: {e}")
+        return
+
     print(f"[{datetime.now().isoformat()}] Bot starting")
+
+    # Check env vars
+    print(f"[DEBUG] DISCORD_TOKEN set: {bool(os.getenv('DISCORD_TOKEN'))}")
+    print(f"[DEBUG] OPENROUTER_API_KEY set: {bool(os.getenv('OPENROUTER_API_KEY'))}")
+    print(f"[DEBUG] TARGET_CHANNEL: {os.getenv('TARGET_CHANNEL')}")
+    print(f"[DEBUG] CHECK_INTERVAL: {os.getenv('CHECK_INTERVAL')}")
 
     # Start HTTP server in background thread
     import threading
+    print("[DEBUG] Starting HTTP server...")
     http_server = run_http_server()
     http_thread = threading.Thread(target=http_server.serve_forever, daemon=True)
     http_thread.start()
+    print("[DEBUG] HTTP server thread started")
 
     # Main bot loop
+    print("[DEBUG] Starting main loop...")
+    loop_count = 0
     while True:
         try:
+            loop_count += 1
+            print(f"[DEBUG] Loop iteration {loop_count}")
             process_messages()
+            print(f"[DEBUG] Sleeping for {CHECK_INTERVAL} seconds...")
             time.sleep(CHECK_INTERVAL)
         except KeyboardInterrupt:
             print("[INFO] Shutting down...")
             break
         except Exception as e:
             print(f"[ERROR] Loop error: {e}")
+            import traceback
+            traceback.print_exc()
             time.sleep(5)
 
 if __name__ == "__main__":
