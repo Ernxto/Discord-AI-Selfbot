@@ -1,10 +1,17 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = "echo 'Functions directory: netlify/functions'"
 
 [build.environment]
   PYTHON_VERSION = "3.9"
+
+[functions]
+  directory = "netlify/functions"
+
+[[scheduled]]
+  name = "discord-bot-poll"
+  cron = "* * * * *"
+  path = "poll"
 
 # Redirect root URL to function
 [[redirects]]
