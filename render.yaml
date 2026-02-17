@@ -1,13 +1,20 @@
 services:
-  - type: worker
-    name: discord-ai-selfbot
+  - type: web
+    name: discord-bot-ernxto
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python3 final_smart.py
+    startCommand: python3 server.py
     envVars:
       - key: DISCORD_TOKEN
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
-    healthCheckPath: /  # Not used for worker, but required
+      - key: TARGET_CHANNEL
+        value: "1470478653606461532"
+        sync: false
+      - key: CHECK_INTERVAL
+        value: "30"
+        sync: false
+    healthCheckPath: /health
+
