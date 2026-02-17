@@ -230,6 +230,18 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"status": "ok", "bot": "alive"}).encode())
+        elif self.path == "/bot-info":
+            # Debug endpoint to check environment variables
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "DISCORD_TOKEN_set": bool(os.getenv("DISCORD_TOKEN")),
+                "OPENROUTER_API_KEY_set": bool(os.getenv("OPENROUTER_API_KEY")),
+                "TARGET_CHANNEL": os.getenv("TARGET_CHANNEL"),
+                "CHECK_INTERVAL": os.getenv("CHECK_INTERVAL"),
+                "PID": os.getpid()
+            }).encode())
         else:
             self.send_response(404)
             self.end_headers()
